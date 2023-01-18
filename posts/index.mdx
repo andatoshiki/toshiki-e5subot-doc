@@ -1,0 +1,209 @@
+![documentation banner](https://api.toshiki.dev/random.php)
+
+# 俊樹のE5subot使用教程
+
+> 👋 Welcome to Toshiki's E5SubBot documentation!
+
+**0-关于&FAQ&注意事项**
+
+-   我中文很差哦 这是第一次用中文写教程/开发文档 还请多多包含
+-   机器人部署在Vultr Cloud上 配置参数如下 Cloud Compute+Intel High Performance+Debian 11 x64+50G NVMe+**1** vCPU**2 GB** Memory**3 TB** Bandwidth 一个月14.4$的Singapore IP服务器上(可能为了一个机器人没必要这么高配置 嘛 不差钱)
+-   机器人基于iyear/E5SubBot使用Go Lang重写 后端数据库使用mysql中的user表单记录如下数据条 如果担心隐私泄漏问题欢迎自己部署哦~ 项目位于[andatoshiki/toshiki-e5subot](http://github.com/andatoshiki/toshiki-e5subot) 在release页面下载对应自己平台的版本自我部署哦 (当然拿到如下内容也干不了什么事 最多把你帐号ban出机器人 而且开发和部署文档咕咕 我最懒啦 >.<)
+
+![@andatoshiki_e5subot数据库概览](https://r2.toshiki.dev/image/chemistry/c81bdaf4c09ce1a2b1c57.png)
+
+@andatoshiki_e5subot数据库概览
+
+-   机器人**不保证**帐号可以一直续订成功哦(所以续订失败不许来PM凶我呜呜) 但是一般情况下都是可以哒 如下图~
+
+![续订成功邮件](https://r2.toshiki.dev/image/chemistry/6777c320e33a00426c3ad.png)
+
+续订成功邮件
+
+-   会读取授权的outlook账号邮箱邮件API 但不会保存任何信息 仅仅是调用API从而达到续订的目的微软在文档中给出的续订API支持类型为 Microsoft Teams, Microsoft Graph, Office/Sharepoint Add-ins, Sharepoint Framework, Power Apps 在这里我们使用的是Microsoft Graph包含的Outlook的[mail.read](https://docs.microsoft.com/en-us/graph/api/user-list-messages?view=graph-rest-1.0&tabs=http) API~
+-   本机器人的管理员为[`@andatoshiki`](http://t.me/andatoshiki)以及[`@chenskiro`](http://t.me/chenskiro)(我的宝贝老婆)
+-   本机器人调用API的时间间隔为`cron 1 */1 * * *`翻译成人话就是每小时一次
+-   本机器人面向帐号的API调用的并发数为20调/次 如果机器人抽风请PM我注明来意哦~(我喜欢有礼貌的小萝莉:D)
+-   每个人最多可以绑定五个E5帐号 为了防止恶意注入 绑定错误最高可以达到15次 如果超过就不可以绑定了哦 看我心情可以改到20次 如果您有需要 欢迎PM我!
+-   本机器人在GitHub [@andatoshiki/toshiki-e5subot](http://github.com/andatoshiki/toshiki-e5subot) 通过GNU General Public License v3.0开源 如果您有自己的开源或者更好地修改办本 请务必严格按照[开源协议](https://www.gnu.org/licenses/gpl-3.0.en.html)开放源代码和二进制编译文件哦~
+
+**1-如何使用机器人命令**
+
+-   **`/start`:** 欢迎光临俊樹のE5subot!
+-   **`/my`:** 命令可以查看已经绑定的帐号信息 机器人会在聊天窗口回复您已绑定帐号的client_id和client_secret以及别名
+-   **`/bind`:** 命令以开始绑定帐号 您会被提供链接重定向到本文档页面以查看教程
+-   **`/unbind`:** 命令解除绑定您在机器人提供的帐号 同时清空数据库和相关帐号有关的数据表单
+-   **`/export`:** 命令导出您已经绑定过的帐号信息为JSON文件格式 方便日后快速导入到机器人(功能开发中)
+-   **`/help`:** 命令查看机器人的帮助信息哦 (你是笨蛋嘛:p)
+-   **`/task:`** 命令可以手动完成以此调用API的任务 仅限机器人的小主人@andatoshiki和@chenskiro使用呐~
+-   **`/log:`** 命令可以调出当前的机器人的日志文件 也是只有小主人可以使用哦
+
+------
+
+**2-机器人使用图文教程演示**
+
+**2-1-使用前准备(可选 觉得麻烦可以直接跳过)**
+
+由于[微软](https://apps.dev.microsoft.com/)为了防止用户恶意应用注册获取`client_id`和`client_secret` 所以将`apps.dev.microsoft.com`的应用自主注册通道关闭 具体内容可以浏览主页banner横幅 如下
+
+>   Application registrations portal is no longer available to register and manage converged applications. We recommend that you manage your existing applications and register new applications by using the App registrations (now Generally Available) experience in the Azure portal.
+
+所以您需要在正式使用机器人之前手动在Azure Active Directory Portal注册`client_id` 和 `client_secret`哦~毕竟自己注册的东西自己用的最安心嘛对不对>.< 注册之前首先需要满足下以下条件哦 是加分向 可以不做选择哦
+
+-   在注册之前建议打开浏览器的隐私浏览窗口(Incognito Tab) 不然您如果之前有在浏览器登录过别的微软帐号可能会导致冲突哦~
+-   查看您的E5帐号数据中心(Datacenter/DC)地址 切换对应代理访问Azure Portal获得最好的体验 如果您忘记了自己的数据中心在哪里可以参考以下步骤哦~ **(不必要 但是建议)**
+
+![Azure Portal登录页面](https://r2.toshiki.dev/image/chemistry/d25c6356a122149866631.png)
+
+Azure Portal登录页面
+
+-   在隐私窗口中打开[Azure Portal](http://portal.azure.com/)页面 登录您的**E5管理员帐号**进入Azure面板
+
+![Azure面板](https://r2.toshiki.dev/image/chemistry/faedc52030be344fc9b37.png)
+
+Azure面板
+
+-   点击左上角汉堡菜单打开侧栏 按照箭头和框出的位置选择**Azure Active Directory**
+
+![Azure Active Directory](https://r2.toshiki.dev/image/chemistry/ff45d89d5ecaea2707b39.png)
+
+Azure Active Directory
+
+-   进入Azure Active Directory点击选择**Properties(属性)**面板
+
+![E5帐号Datacenter位置展示](https://r2.toshiki.dev/image/chemistry/5c39f62ce8aa2cbb5d038.png)
+
+E5帐号Datacenter位置展示
+
+-   在Properties面板您就可以看到您的开发帐号的基础信息啦~在**Country or region/Data location**的区域您就可以看到您帐号的具体国家位置和数据中心位置啦~像我的帐号就是United States datacenter美国数据中心:P
+-   接下来愉快的切换美国IP的代理 让我们开始愉快的注册`client_id`和`client_secret`叭~
+
+------
+
+**2-2-注册`client_id`以及`client_secret`**
+
+![选择App Registration](https://r2.toshiki.dev/image/chemistry/f059057797a827004f5cc.png)
+
+选择App Registration
+
+-   同样在Azure Active Directory界面找到**App registration应用注册**进入对应页面
+
+![点击新注册New Registration注册新应用](https://r2.toshiki.dev/image/chemistry/656117330c30c406c0dc3.png)
+
+点击新注册New Registration注册新应用
+
+-   进入App registration页面后点击**New registration**注册新应用
+
+![注册新应用](https://r2.toshiki.dev/image/chemistry/81ff694ebf12555146344.png)
+
+注册新应用
+
+-   按照截屏中的步骤和箭头一步步来哦 应用名称可以随便填写 **Supported account types(受支持的账户类型)选择任何组织目录(任何 Azure AD 目录 - 多租户)中的帐户和个人 Microsoft 帐户(例如，Skype、 Xbox)** 重定向URL选择Web平台 填入`http://localhost/toshiki-e5subot` 一定一定要写这个哦 不然等一下是不可以获取localhost url的~ 最后点击注册
+
+![获取](https://r2.toshiki.dev/image/chemistry/eadd8207324b9556bf845.png)
+
+获取`client_id`
+
+-   注册完成应用后会自动重定向到本页面 图中的**Application(client) ID应用程序(客户端) ID即使对应的`client_id`** 记得拿个小本子记好哦~之后会用到哒
+
+![获取第一步](https://r2.toshiki.dev/image/chemistry/29b511a84601d103d2dd7.png)
+
+获取`client_secret`第一步
+
+-   接下来点击侧边栏中的**Certificates & secrets(证书和密码)选择New client secret(新客户端密码)**创建新客户端密码
+
+![设置](https://r2.toshiki.dev/image/chemistry/57a4649e6bca61129f90c.png)
+
+设置`client_secret`
+
+-   点击New client secret会有一个自动弹出的窗口让您设置client secret Description(描述)**可以随便填写** 过期时间**最多只能两年哦**(以前是可以永久的 但是因为微软考虑到安全隐患问题改成两年了:x 其实无伤大雅两年后重新申请client_secret重新在机器人绑定帐号就可以啦~) 详细的安全隐患问题可以参考微软发布的[如下](https://devblogs.microsoft.com/microsoft365dev/client-secret-expiration-now-limited-to-a-maximum-of-two-years/#:~:text=Client Secret expiration now limited to a maximum,Microsoft identity platform team February 9th%2C 2022 3)文章
+
+>   The portal option to select ‘Never Expire’ option for the Client Secret Expiry was removed in April 2021.
+
+-   点击添加 您会被重定向到如下界面
+
+![保存](https://r2.toshiki.dev/image/chemistry/d68fdccd0e84cae6cf0e9.png)
+
+保存`client_secret`
+
+-   您会看到一个名为**Value(值)的字符串这个就是您的client_secret 记住不是Secret ID 复制 并且一定一定要保存!** 不会出现第二次!
+
+![创建API权限](https://r2.toshiki.dev/image/chemistry/114e99c50328936634796.png)
+
+创建API权限
+
+-   点击侧栏中的**API permission(API 权限)** 点击 **(Add a permission)添加权限**
+
+![选择Microsoft Graph API](https://r2.toshiki.dev/image/chemistry/80660e554c86a206fe29f.png)
+
+选择Microsoft Graph API
+
+-   点击添加权限后 您会被定向到**选择API权限** 这里选择**Microsoft Graph API**权限 有些小萝莉可能会找不到 慢慢往下翻一定会有哦~
+
+![选择权限类型](https://r2.toshiki.dev/image/chemistry/e7911a47a0e92d8b3006b.png)
+
+选择权限类型
+
+-   点击**Delegated permission选择委托权限类型**
+
+![ & ](https://r2.toshiki.dev/image/chemistry/09143b1c4160c6314181d.png)
+
+```
+offline_access` & `openid
+```
+
+![img](https://r2.toshiki.dev/image/chemistry/c28981bff3cf94e66eae0.png)
+
+```
+Mail.Read
+```
+
+-   这一步很关键 一定不可以选错! 不然要重新来过 在如图permissions中选择**`openid` `offline_access`和 `mail.read`** 权限 (是三个!) 如果找不到请善用搜索功能哦~ 最后点击**Add permission(添加权限)**
+
+到这里您就已经彻底注册完成client_id和client_secret了哦~ 一定不要忘记要保存qwq
+
+------
+
+**2-3-使用机器人绑定账户**
+
+![俊樹のE5subot @andatoshiki_e5subot](https://r2.toshiki.dev/image/chemistry/6d0479c4d3203a5e8dd40.png)
+
+俊樹のE5subot @andatoshiki_e5subot
+
+-   进入机器人输入`/start`开始使用
+
+![绑定账户](https://r2.toshiki.dev/image/chemistry/5fcbbdaab64e58f893f9e.png)
+
+绑定账户
+
+-   输入`/bind`绑定账户 机器人会自动弹出回复窗口 输入您刚刚获取的`client_id`和`client_secret` **注意`client_id`和`client_secret`中间需要加空格! 请注意格式!**
+
+![获取绑定链接](https://r2.toshiki.dev/image/chemistry/fb76d7226872f05b91944.png)
+
+获取绑定链接
+
+-   点击直达链接登录您的帐号(*推荐使用E5子号哦*)
+
+![授权](https://r2.toshiki.dev/image/chemistry/abbf44c7587bc3cf044f4.png)
+
+授权
+
+-   点击**Consent on behalf of your organization(代表您的组织同意)对您组织下所有的帐号授权 然后点击Accept(接受)**
+
+![404](https://r2.toshiki.dev/image/chemistry/388e18324084a9ea4ad16.png)
+
+404
+
+-   接下来您会被重定向到一个404 Note Found的Nginx报错页面 不要担心到这一步位置是对的 **复制浏览器地址栏中的那一串链接 一定要复制全哦~**
+
+![授权账户](https://r2.toshiki.dev/image/chemistry/67fb427a3f9081720624e.png)
+
+授权账户
+
+-   接下来回到机器人 **复制粘贴您刚刚在浏览器获得的链接 务必加上空格 最后填写别名 别名可以随便写哦 支持任意语言 只是给您的账户命个名 方便后续管理~**
+
+![https://telegra.ph/file/d92c55e64e547660d8764.png](https://r2.toshiki.dev/image/chemistry/d92c55e64e547660d8764.png)
+
+成功
+
+-   最后您成功绑定账户啦~开心使用叭 (❁´◡`❁)
